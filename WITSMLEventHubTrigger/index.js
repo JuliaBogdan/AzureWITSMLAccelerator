@@ -12,8 +12,6 @@ module.exports = function (context, eventHubMessages) {
     });
     context.bindings.outputEventHubMessage = parsedMessages;
     context.bindings.outputQueueMessage = parsedMessages;
-    
-    //context.bindings.outputBlobMessage = imageBuffer;
     context.done();
 };
 
