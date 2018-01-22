@@ -4,23 +4,16 @@
       "type": "eventHubTrigger",
       "name": "eventHubMessages",
       "direction": "in",
-      "path": "witsmlparseddata",
-      "connection": "WITSMLIoTHub_events_IOTHUB",
+      "path": "events",
+      "connection": "%eventHubConnectionString%",
       "cardinality": "many",
       "consumerGroup": "$Default"
     },
     {
       "type": "eventHub",
       "name": "outputEventHubMessage",
-      "connection": "WITSMLEventHub_RootManageSharedAccessKey_EVENTHUB",
+      "connection": "%outputEventHubConnectionString%",
       "path": "witsmldatahub",
-      "direction": "out"
-    },
-    {
-      "type": "queue",
-      "name": "outputQueueMessage",
-      "queueName": "witsmlparseddataqueue",
-      "connection": "witsmlreceiverstorage_STORAGE",
       "direction": "out"
     }
   ],
