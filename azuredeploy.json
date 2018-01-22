@@ -1,0 +1,220 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "hostingPlanName": {
+            "defaultValue": "WITSMLReceiverConsumptionPlan",
+            "type": "string"
+        },
+        "iotHubName": {
+            "defaultValue": "WITSMLIoTHub",
+            "type": "string"
+        },
+        "functionName": {
+            "defaultValue": "WITSMLReceiverFunction",
+            "type": "string"
+        },
+        "eventHubNamespace": {
+            "defaultValue": "WITSMLEventHub",
+            "type": "string"
+        },
+        "storageAccountName": {
+            "defaultValue": "witsmlreceiverstorage",
+            "type": "string"
+        },
+        "eventHubName": {
+            "defaultValue": "witsmldatahub",
+            "type": "string"
+        },
+        "authorizationRulesName": {
+            "defaultValue": "RootManageSharedAccessKey",
+            "type": "string"
+        },
+        "functionRepoUrl": {
+            "defaultValue": "https://github.com/JuliaBogdan/AzureWITSMLAccelerator.git",
+            "type": "string"
+        },
+        "functionRepoBranch": {
+            "defaultValue": "master",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "hostNameBindingsName": "[concat(toLower(parameters('functionName')), '.azurewebsites.net')]",
+        "storageAccountID": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
+        "eventHubServiceBusEndpointName": "[toLower(concat(parameters('eventHubNamespace'),'.servicebus.windows.net'))]",
+        "iotHubPolicyName": "iothubowner",
+        "iotHubApiVersion": "2016-02-03"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Devices/IotHubs",
+            "sku": {
+                "name": "F1",
+                "tier": "Free",
+                "capacity": 1
+            },
+            "name": "[parameters('iotHubName')]",
+            "apiVersion": "2016-02-03",
+            "location": "[variables('location')]",
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces",
+            "sku": {
+                "name": "Basic",
+                "tier": "Basic",
+                "capacity": 1
+            },
+            "name": "[parameters('eventHubNamespace')]",
+            "apiVersion": "2017-04-01",
+            "location": "[variables('location')]",
+            "properties": {
+                "serviceBusEndpoint": "[concat('https://', variables('eventHubServiceBusEndpointName'),':443/')]"
+            }
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces/AuthorizationRules",
+            "name": "[concat(parameters('eventHubNamespace'), '/', parameters('authorizationRulesName'))]",
+            "apiVersion": "2017-04-01",
+            "location": "[variables('location')]",
+            "properties": {
+                "rights": [
+                    "Listen",
+                    "Manage",
+                    "Send"
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespace'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces/eventhubs",
+            "name": "[concat(parameters('eventHubNamespace'), '/', parameters('eventHubName'))]",
+            "apiVersion": "2017-04-01",
+            "location": "[variables('location')]",
+            "properties": {
+                "messageRetentionInDays": 1,
+                "partitionCount": 2,
+                "partitionIds": [
+                    "0",
+                    "1"
+                ]
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', parameters('eventHubNamespace'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "name": "[parameters('storageAccountName')]",
+            "apiVersion": "2017-06-01",
+            "location": "[variables('location')]",
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "sku": {
+                "name": "Y1",
+                "tier": "Dynamic",
+                "size": "Y1",
+                "family": "Y",
+                "capacity": 0
+            },
+            "kind": "functionapp",
+            "name": "[parameters('hostingPlanName')]",
+            "apiVersion": "2016-09-01",
+            "location": "[variables('location')]",
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "kind": "functionapp",
+            "name": "[parameters('functionName')]",
+            "apiVersion": "2016-08-01",
+            "location": "[variables('location')]",
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "AzureWebJobsDashboard",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountID'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountID'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountID'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[toLower(parameters('functionName'))]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~1"
+                        },
+                        {
+                            "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                            "value": "6.5.0"
+                        },
+                        {
+                            "name": "[concat(parameters('storageAccountName'), '_STORAGE')]",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountID'),'2015-05-01-preview').key1)]"
+                        },
+                        {
+                            "name": "eventHubConnectionString",
+                            "value": "[concat('Endpoint=', reference(resourceId('Microsoft.Devices/IoTHubs', parameters('iotHubName'))).eventHubEndpoints.events.endpoint, ';SharedAccessKeyName=', variables('iotHubPolicyName'), ';SharedAccessKey=', listKeys( resourceId('Microsoft.Devices/iotHubs/iotHubKeys', parameters('iotHubName'),variables('iotHubPolicyName')), variables('iotHubApiVersion')).primaryKey, ';EntityPath=',reference(resourceId('Microsoft.Devices/IoTHubs',parameters('iotHubName'))).eventHubEndpoints.events.path)]"
+                        },
+                        {
+                            "name": "outputEventHubConnectionString",
+                            "value": "[concat('Endpoint=sb://', variables('eventHubServiceBusEndpointName'),'/;SharedAccessKeyName=', parameters('authorizationRulesName'), ';SharedAccessKey=', listKeys( resourceId('Microsoft.EventHub/namespaces/AuthorizationRules', parameters('eventHubNamespace'), parameters('authorizationRulesName')), '2017-04-01').primaryKey, ';EntityPath=', toLower(parameters('eventHubName')))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]"
+            ],
+            "resources": [
+                {
+                    "apiVersion": "2016-08-01",
+                    "name": "web",
+                    "type": "sourcecontrols",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/sites/', parameters('functionName'))]"
+                    ],
+                    "properties": {
+                        "RepoUrl": "[parameters('functionRepoUrl')]",
+                        "branch": "[parameters('functionRepoBranch')]",
+                        "IsManualIntegration": "false"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Web/sites/hostNameBindings",
+            "name": "[concat(parameters('functionName'), '/', variables('hostNameBindingsName'))]",
+            "apiVersion": "2016-08-01",
+            "location": "[variables('location')]",
+            "properties": {
+                "siteName": "[parameters('functionName')]",
+                "domainId": null,
+                "hostNameType": "Verified"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('functionName'))]"
+            ]
+        }
+    ]
+}
