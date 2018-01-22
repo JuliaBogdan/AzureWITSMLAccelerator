@@ -5,14 +5,14 @@
       "name": "eventHubMessages",
       "direction": "in",
       "path": "events",
-      "connection": "%eventHubConnectionString%",
+      "connection": "eventHubConnectionString",
       "cardinality": "many",
       "consumerGroup": "$Default"
     },
     {
       "type": "eventHub",
       "name": "outputEventHubMessage",
-      "connection": "%outputEventHubConnectionString%",
+      "connection": "outputEventHubConnectionString",
       "path": "witsmldatahub",
       "direction": "out"
     }
