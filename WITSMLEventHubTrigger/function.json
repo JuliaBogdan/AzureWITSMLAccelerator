@@ -19,7 +19,7 @@
     {
       "type": "queue",
       "name": "outputQueueMessage",
-      "queueName": "%outputQueue%",
+      "queueName": "witsmlparseddataqueue",
       "connection": "storageConnectionString",
       "direction": "out"
     }
