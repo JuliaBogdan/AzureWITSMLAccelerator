@@ -13,14 +13,7 @@
       "type": "eventHub",
       "name": "outputEventHubMessage",
       "connection": "outputEventHubConnectionString",
-      "path": "%outputEventHubPath%",
-      "direction": "out"
-    },
-    {
-      "type": "queue",
-      "name": "outputQueueMessage",
-      "queueName": "%outputQueue%",
-      "connection": "storageConnectionString",
+      "path": "witsmldatahub",
       "direction": "out"
     }
   ],
